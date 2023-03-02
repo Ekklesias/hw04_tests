@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
-from posts.forms import PostForm
-from posts.models import Post, Group
 from django.test import Client, TestCase
 from django.urls import reverse
 from http import HTTPStatus
+
+from posts.models import Post, Group
+
 
 User = get_user_model()
 
@@ -12,9 +13,7 @@ class PostCreateFormTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создадим автора поста
         cls.author_of_post = User.objects.create_user(username="TestAuthor")
-        # Создаем тестовую группу
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-group',
@@ -25,8 +24,6 @@ class PostCreateFormTests(TestCase):
             author=cls.author_of_post,
             group=cls.group
         )
-        # Создаем форму, если нужна проверка атрибутов
-        cls.form = PostForm()
 
     def setUp(self):
         # Создадим клиент и авторизуем автора поста
@@ -59,24 +56,13 @@ class PostCreateFormTests(TestCase):
             Post.objects.filter(
                 group=PostCreateFormTests.group,
                 author=PostCreateFormTests.author_of_post,
-                text='Заголовок из формы'
+                text=form_data['text']
             ).exists()
         )
 
     def test_authorized_edit_post(self):
-        """Редактирование поста"""
-        # Проверяем, что автор может редактировать пост
-        form_data = {
-            'text': 'Тестовый текст',
-            'group': self.group.pk,
-        }
-        self.client_for_author_of_post.post(
-            reverse('posts:post_create'),
-            data=form_data,
-            follow=True,
-        )
-        post_edit = Post.objects.get(pk=self.group.pk)
-        self.client.get(f'/posts/{post_edit.pk}/edit/')
+        """Проверяем, что автор может редактировать пост"""
+        post_edit = Post.objects.get(id=self.post.id)
         form_data = {
             'text': 'Вот мы изменили пост',
             'group': self.group.pk
@@ -89,6 +75,7 @@ class PostCreateFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        post_edit = Post.objects.get(pk=self.group.pk)
+        post_edit = Post.objects.get(id=self.post.id)
         self.assertEqual(response_edit.status_code, HTTPStatus.OK)
         self.assertEqual(post_edit.text, 'Вот мы изменили пост')
+        self.assertEqual(post_edit.group, self.group)

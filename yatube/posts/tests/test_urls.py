@@ -12,15 +12,12 @@ class StaticURLTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создадим автора поста
         cls.author_of_post = User.objects.create_user(username="TestAuthor")
-        # Создадим запись в БД для группы
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-group',
             description='Тестовое описание группы'
         )
-        # Создадим тестовый пост и присвоим автору
         cls.post = Post.objects.create(
             text='Тестовый пост',
             author=cls.author_of_post,
@@ -29,10 +26,10 @@ class StaticURLTests(TestCase):
         # Шаблоны по адресам
         cls.templates_url_names = {
             '/': 'posts/index.html',
-            '/group/test-group/': 'posts/group_list.html',
-            '/profile/TestAuthor/': 'posts/profile.html',
-            '/posts/1/': 'posts/post_detail.html',
-            '/posts/1/edit/': 'posts/create.html',
+            f'/group/{cls.group.slug}/': 'posts/group_list.html',
+            f'/profile/{cls.author_of_post}/': 'posts/profile.html',
+            f'/posts/{cls.post.pk}/': 'posts/post_detail.html',
+            f'/posts/{cls.post.pk}/edit/': 'posts/create.html',
             '/create/': 'posts/create.html',
         }
         # список со статусам кодов
@@ -45,13 +42,8 @@ class StaticURLTests(TestCase):
             '/create/': HTTPStatus.OK,
         }
 
-    # Создадим программные клиенты
     def setUp(self):
-        # клиент неавторизованного юзера
-        self.guest_client = Client()
-        # Создадим ещё одного пользователя
         self.user_auth = User.objects.create_user(username='TestAuth')
-        # Создаём ещё один клиент и авторизовываем этого пользователя
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user_auth)
         # Создадим клиент и авторизуем автора поста
@@ -60,7 +52,7 @@ class StaticURLTests(TestCase):
 
     def test_unexisting_page_correct_status(self):
         """Страница по адресу 'unexisting_page' вернёт ошибку 404."""
-        response = self.guest_client.get('/unexisting_page/').status_code
+        response = self.client.get('/unexisting_page/').status_code
         self.assertEqual(response, HTTPStatus.NOT_FOUND)
 
     def test_client_for_author_of_post_status_code(self):
@@ -92,10 +84,10 @@ class StaticURLTests(TestCase):
         for address, status_code in self.temp_urls_status_code.items():
             if address != '/posts/1/edit/' and address != '/create/':
                 with self.subTest(address=address):
-                    response = self.guest_client.get(address).status_code
+                    response = self.client.get(address).status_code
                     self.assertEqual(response, status_code)
             else:
-                response = self.guest_client.get(address)
+                response = self.client.get(address)
                 self.assertRedirects(response, f'{auth_url}{address}')
 
     def test_urls_uses_correct_template1(self):

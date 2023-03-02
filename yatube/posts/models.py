@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+TEXT_LIMIT = 15
+
 
 class Group(models.Model):
     title = models.CharField(max_length=200)
@@ -35,4 +37,4 @@ class Post(models.Model):
         ordering = ['-pub_date']
 
     def __str__(self):
-        return self.text[:15]
+        return self.text[:TEXT_LIMIT]

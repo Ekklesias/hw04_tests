@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from ..models import Group, Post
+from ..models import Group, Post, TEXT_LIMIT
 
 User = get_user_model()
 
@@ -30,7 +30,7 @@ class PostModelTest(TestCase):
     def test_object_name_is_title_fild1(self):
         """__str__  task """
         post = PostModelTest.post
-        expected_object_name = post.text[:15]
+        expected_object_name = post.text[:TEXT_LIMIT]
         self.assertEqual(expected_object_name, str(post))
 
     def test_verbose_name(self):

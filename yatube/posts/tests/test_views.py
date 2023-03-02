@@ -2,8 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django import forms
-from posts.forms import PostForm
 
+from posts.forms import PostForm
 from posts.models import Post, Group
 
 User = get_user_model()
@@ -14,9 +14,7 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         super().setUpClass()
-        # Создадим автора поста
         cls.author_of_post = User.objects.create_user(username="TestAuthor")
-        # Создадим запись в БД для группы
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-group',
@@ -28,7 +26,6 @@ class PostPagesTests(TestCase):
             slug='test-group2',
             description='Тестовое описание группы2'
         )
-        # Создадим тестовый пост и присвоим автору
         cls.post = Post.objects.create(
             text='Тестовый пост',
             author=cls.author_of_post,
@@ -36,15 +33,19 @@ class PostPagesTests(TestCase):
         )
 
     def setUp(self):
-        self.guest_client = Client()
-        # Создадим ещё одного пользователя
         self.user_auth = User.objects.create_user(username='AuthUser')
-        # Создаём ещё один клиент и авторизовываем этого пользователя
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user_auth)
         # Создадим клиент и авторизуем автора поста
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post)
+
+    def posts_check_all_fields(self, post):
+        """Метод, проверяющий поля поста."""
+        with self.subTest(post=post):
+            self.assertEqual(post.text, self.post.text)
+            self.assertEqual(post.author, self.post.author)
+            self.assertEqual(post.group, self.post.group)
 
     # Проверяем используемые шаблоны
     def test_pages_uses_correct_template(self):
@@ -74,34 +75,24 @@ class PostPagesTests(TestCase):
         """Шаблон index с правильным контекстом"""
         response = self.client_for_author_of_post.get(reverse('posts:index'))
         post = response.context['page_obj'][0]
-        task_text_0 = post.text
-        task_author_0 = post.author
-        task_group_0 = post.group
-        self.assertEqual(task_text_0, 'Тестовый пост')
-        self.assertEqual(task_author_0, self.post.author)
-        self.assertEqual(task_group_0, self.post.group)
+        self.assertEqual(post.id, self.post.id)
+        self.posts_check_all_fields(response.context['page_obj'][0])
         self.assertIn('page_obj', response.context)
 
     def test_group_list_page_show_correct_context(self):
         """Шаблон group_list с правильным контекстом"""
         response = (self.client_for_author_of_post.get(
             reverse('posts:group_list',
-                    kwargs={'slug': 'test-group'})))
-        group = response.context['page_obj'][0]
-        self.assertEqual(group.group, self.group)
-        self.assertEqual(group.text, 'Тестовый пост')
-        self.assertEqual(group.author, self.post.author)
+                    kwargs={'slug': self.group.slug})))
+        self.posts_check_all_fields(response.context['page_obj'][0])
         self.assertIn('page_obj', response.context)
 
     def test_profile_page_show_correct_context(self):
         """Шаблон profile с правильным контекстом"""
         response = (self.client_for_author_of_post.get(
             reverse('posts:profile',
-                    kwargs={'username': 'TestAuthor'})))
-        post = response.context['page_obj'][0]
-        self.assertEqual(post.group, self.group)
-        self.assertEqual(post.text, 'Тестовый пост')
-        self.assertEqual(post.author, self.post.author)
+                    kwargs={'username': self.author_of_post.username})))
+        self.posts_check_all_fields(response.context['page_obj'][0])
         self.assertIn('page_obj', response.context)
 
     def test_post_detail_page_show_correct_context(self):
@@ -109,10 +100,7 @@ class PostPagesTests(TestCase):
         response = (self.client_for_author_of_post.get(
             reverse('posts:post_detail',
                     kwargs={'post_id': '1'})))
-        post = response.context['post']
-        self.assertEqual(post.group, self.group)
-        self.assertEqual(post.text, 'Тестовый пост')
-        self.assertEqual(post.author, self.post.author)
+        self.posts_check_all_fields(response.context['post'])
 
     def test_create_page_show_correct_context(self):
         """Проверка форм создания и редактирования поста - create."""
@@ -186,18 +174,26 @@ class PaginatorViewsTest(TestCase):
     def setUp(self):
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post2)
+        self.first_page_posts_count = 10
+        self.second_page_posts_count = 3
 
     def test_first_page_contains_ten_records(self):
         response = self.client_for_author_of_post.get(reverse('posts:index'))
         # Проверка: количество постов на первой странице равно 10.
-        self.assertEqual(len(response.context['page_obj']), 10)
+        self.assertEqual(
+            len(response.context['page_obj']), self.first_page_posts_count
+        )
 
     def test_second_page_contains_three_records(self):
         # Проверка: на второй странице должно быть три поста.
+        all_posts = Post.objects.count()
         response = self.client_for_author_of_post.get(
             reverse('posts:index') + '?page=2'
         )
-        self.assertEqual(len(response.context['page_obj']), 3)
+        self.assertEqual(
+            len(response.context['page_obj']),
+            all_posts - self.first_page_posts_count
+        )
 
     def test_page_contains_ten_and_3_posts(self):
         paginator_urls = (
@@ -206,8 +202,8 @@ class PaginatorViewsTest(TestCase):
             ('posts:profile', (self.author_of_post2.username,))
         )
         count_posts = (
-            ('?page=1', 10),
-            ('?page=2', 3)
+            ('?page=1', self.first_page_posts_count),
+            ('?page=2', self.second_page_posts_count)
         )
         for address, args in paginator_urls:
             for page, count in count_posts:
