@@ -35,10 +35,10 @@ class StaticURLTests(TestCase):
         # список со статусам кодов
         cls.temp_urls_status_code = {
             '/': HTTPStatus.OK,
-            '/group/test-group/': HTTPStatus.OK,
-            '/profile/TestAuthor/': HTTPStatus.OK,
-            '/posts/1/': HTTPStatus.OK,
-            '/posts/1/edit/': HTTPStatus.OK,
+            f'/group/{cls.group.slug}/': HTTPStatus.OK,
+            f'/profile/{cls.author_of_post}/': HTTPStatus.OK,
+            f'/posts/{cls.post.pk}/': HTTPStatus.OK,
+            f'/posts/{cls.post.pk}/edit/': HTTPStatus.OK,
             '/create/': HTTPStatus.OK,
         }
 

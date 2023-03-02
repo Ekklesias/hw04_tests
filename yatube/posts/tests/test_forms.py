@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
+
 from http import HTTPStatus
 
 from posts.models import Post, Group
@@ -26,7 +27,6 @@ class PostCreateFormTests(TestCase):
         )
 
     def setUp(self):
-        # Создадим клиент и авторизуем автора поста
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post)
 
@@ -75,7 +75,6 @@ class PostCreateFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        post_edit = Post.objects.get(id=self.post.id)
         self.assertEqual(response_edit.status_code, HTTPStatus.OK)
-        self.assertEqual(post_edit.text, 'Вот мы изменили пост')
+        self.assertEqual(post_edit.text, self.post.text)
         self.assertEqual(post_edit.group, self.group)

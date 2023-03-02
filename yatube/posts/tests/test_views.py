@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django import forms
+from django.conf import settings
 
 from posts.forms import PostForm
 from posts.models import Post, Group
@@ -43,6 +44,7 @@ class PostPagesTests(TestCase):
     def posts_check_all_fields(self, post):
         """Метод, проверяющий поля поста."""
         with self.subTest(post=post):
+            self.assertEqual(post.id, self.post.id)
             self.assertEqual(post.text, self.post.text)
             self.assertEqual(post.author, self.post.author)
             self.assertEqual(post.group, self.post.group)
@@ -74,8 +76,6 @@ class PostPagesTests(TestCase):
     def test_index_page_show_correct_context(self):
         """Шаблон index с правильным контекстом"""
         response = self.client_for_author_of_post.get(reverse('posts:index'))
-        post = response.context['page_obj'][0]
-        self.assertEqual(post.id, self.post.id)
         self.posts_check_all_fields(response.context['page_obj'][0])
         self.assertIn('page_obj', response.context)
 
@@ -174,14 +174,12 @@ class PaginatorViewsTest(TestCase):
     def setUp(self):
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post2)
-        self.first_page_posts_count = 10
-        self.second_page_posts_count = 3
 
     def test_first_page_contains_ten_records(self):
         response = self.client_for_author_of_post.get(reverse('posts:index'))
         # Проверка: количество постов на первой странице равно 10.
         self.assertEqual(
-            len(response.context['page_obj']), self.first_page_posts_count
+            len(response.context['page_obj']), settings.POSTS_AMOUNT
         )
 
     def test_second_page_contains_three_records(self):
@@ -192,7 +190,7 @@ class PaginatorViewsTest(TestCase):
         )
         self.assertEqual(
             len(response.context['page_obj']),
-            all_posts - self.first_page_posts_count
+            all_posts - settings.POSTS_AMOUNT
         )
 
     def test_page_contains_ten_and_3_posts(self):
@@ -202,8 +200,8 @@ class PaginatorViewsTest(TestCase):
             ('posts:profile', (self.author_of_post2.username,))
         )
         count_posts = (
-            ('?page=1', self.first_page_posts_count),
-            ('?page=2', self.second_page_posts_count)
+            ('?page=1', settings.POSTS_AMOUNT),
+            ('?page=2', settings.POSTS_AMOUNT2)
         )
         for address, args in paginator_urls:
             for page, count in count_posts:
