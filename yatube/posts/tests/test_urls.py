@@ -1,7 +1,7 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
-
-from http import HTTPStatus
 
 from posts.models import Post, Group
 
@@ -23,7 +23,6 @@ class StaticURLTests(TestCase):
             author=cls.author_of_post,
             group=cls.group
         )
-        # Шаблоны по адресам
         cls.templates_url_names = {
             '/': 'posts/index.html',
             f'/group/{cls.group.slug}/': 'posts/group_list.html',
@@ -32,7 +31,6 @@ class StaticURLTests(TestCase):
             f'/posts/{cls.post.pk}/edit/': 'posts/create.html',
             '/create/': 'posts/create.html',
         }
-        # список со статусам кодов
         cls.temp_urls_status_code = {
             '/': HTTPStatus.OK,
             f'/group/{cls.group.slug}/': HTTPStatus.OK,
@@ -46,7 +44,6 @@ class StaticURLTests(TestCase):
         self.user_auth = User.objects.create_user(username='TestAuth')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user_auth)
-        # Создадим клиент и авторизуем автора поста
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post)
 
@@ -69,7 +66,7 @@ class StaticURLTests(TestCase):
         кроме edit. C edit редирект на post_detail"""
         edit_url = '/posts/1/'
         for address, status_code in self.temp_urls_status_code.items():
-            if address != '/posts/1/edit/':
+            if address != f'/posts/{self.post.pk}/edit/':
                 with self.subTest(address=address):
                     response = self.authorized_client.get(address).status_code
                     self.assertEqual(response, status_code)

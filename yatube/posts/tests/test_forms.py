@@ -1,8 +1,8 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-
-from http import HTTPStatus
 
 from posts.models import Post, Group
 
@@ -31,7 +31,6 @@ class PostCreateFormTests(TestCase):
         self.client_for_author_of_post.force_login(self.author_of_post)
 
     def test_create_new_post(self):
-        # Подсчитаем количество записей в Post
         tasks_count = Post.objects.count()
         form_data = {
             'text': 'Заголовок из формы',
@@ -42,11 +41,8 @@ class PostCreateFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        # Убедимся, что запись в базе данных создалась
         self.assertEqual(Post.objects.count(), tasks_count + 1)
-        # Проверим, что ничего не упало и страница отдаёт код 200
         self.assertEqual(response.status_code, 200)
-        # Проверяем, сработал ли редирект
         self.assertRedirects(response, reverse(
             'posts:profile',
             kwargs={'username': PostCreateFormTests.author_of_post})
@@ -62,7 +58,6 @@ class PostCreateFormTests(TestCase):
 
     def test_authorized_edit_post(self):
         """Проверяем, что автор может редактировать пост"""
-        post_edit = Post.objects.get(id=self.post.id)
         form_data = {
             'text': 'Вот мы изменили пост',
             'group': self.group.pk
@@ -70,11 +65,12 @@ class PostCreateFormTests(TestCase):
         response_edit = self.client_for_author_of_post.post(
             reverse('posts:post_edit',
                     kwargs={
-                        'post_id': post_edit.pk
+                        'post_id': self.post.pk
                     }),
             data=form_data,
             follow=True,
         )
+        post_id = Post.objects.first()
         self.assertEqual(response_edit.status_code, HTTPStatus.OK)
-        self.assertEqual(post_edit.text, self.post.text)
-        self.assertEqual(post_edit.group, self.group)
+        self.assertEqual(post_id.text, form_data['text'])
+        self.assertEqual(post_id.group.id, form_data['group'])

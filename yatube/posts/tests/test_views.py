@@ -37,7 +37,6 @@ class PostPagesTests(TestCase):
         self.user_auth = User.objects.create_user(username='AuthUser')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user_auth)
-        # Создадим клиент и авторизуем автора поста
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post)
 
@@ -49,7 +48,6 @@ class PostPagesTests(TestCase):
             self.assertEqual(post.author, self.post.author)
             self.assertEqual(post.group, self.post.group)
 
-    # Проверяем используемые шаблоны
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         # Собираем в словарь пары "имя_html_шаблона: reverse(name)"
