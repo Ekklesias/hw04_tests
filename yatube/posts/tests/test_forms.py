@@ -47,7 +47,6 @@ class PostCreateFormTests(TestCase):
             'posts:profile',
             kwargs={'username': PostCreateFormTests.author_of_post})
         )
-        # Проверяем, что создалась запись с заданным слагом
         self.assertTrue(
             Post.objects.filter(
                 group=PostCreateFormTests.group,
@@ -70,7 +69,7 @@ class PostCreateFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        post_id = Post.objects.first()
+        post_edit = Post.objects.get(id=self.post.id)
         self.assertEqual(response_edit.status_code, HTTPStatus.OK)
-        self.assertEqual(post_id.text, form_data['text'])
-        self.assertEqual(post_id.group.id, form_data['group'])
+        self.assertEqual(post_edit.text, form_data['text'])
+        self.assertEqual(post_edit.group.id, form_data['group'])

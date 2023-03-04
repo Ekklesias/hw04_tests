@@ -21,7 +21,6 @@ class PostPagesTests(TestCase):
             slug='test-group',
             description='Тестовое описание группы'
         )
-        # Создадим вторую группу для проверки, куда попал пост
         cls.group2 = Group.objects.create(
             title='Тестовая группа2',
             slug='test-group2',
@@ -50,7 +49,6 @@ class PostPagesTests(TestCase):
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
-        # Собираем в словарь пары "имя_html_шаблона: reverse(name)"
         templates_page_names = {
             'posts/index.html': reverse('posts:index'),
             'posts/group_list.html': (
@@ -64,8 +62,6 @@ class PostPagesTests(TestCase):
             ),
             'posts/create.html': reverse('posts:post_create')
         }
-        # Проверяем, что при обращении к name
-        # вызывается соответствующий HTML-шаблон
         for template, reverse_name in templates_page_names.items():
             with self.subTest(template=template):
                 response = self.client_for_author_of_post.get(reverse_name)
@@ -151,12 +147,10 @@ class PostPagesTests(TestCase):
 
 
 class PaginatorViewsTest(TestCase):
-    # Здесь создаются фикстуры: клиент и 13 тестовых записей.
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.author_of_post2 = User.objects.create_user(username="TestAuthor2")
-        # Создадим запись в БД для группы
         cls.group = Group.objects.create(
             title='Group for Paginator',
             slug='paginat',
@@ -175,13 +169,11 @@ class PaginatorViewsTest(TestCase):
 
     def test_first_page_contains_ten_records(self):
         response = self.client_for_author_of_post.get(reverse('posts:index'))
-        # Проверка: количество постов на первой странице равно 10.
         self.assertEqual(
             len(response.context['page_obj']), settings.POSTS_AMOUNT
         )
 
     def test_second_page_contains_three_records(self):
-        # Проверка: на второй странице должно быть три поста.
         all_posts = Post.objects.count()
         response = self.client_for_author_of_post.get(
             reverse('posts:index') + '?page=2'

@@ -64,7 +64,7 @@ class StaticURLTests(TestCase):
     def test_authorized_client_status_code(self):
         """Проверим, что все страницы доступны НЕавтору,
         кроме edit. C edit редирект на post_detail"""
-        edit_url = '/posts/1/'
+        edit_url = f'/posts/{self.post.pk}/'
         for address, status_code in self.temp_urls_status_code.items():
             if address != f'/posts/{self.post.pk}/edit/':
                 with self.subTest(address=address):
@@ -79,7 +79,8 @@ class StaticURLTests(TestCase):
         кроме edit и create. C ними редирект на авторизацию"""
         auth_url = '/auth/login/?next='
         for address, status_code in self.temp_urls_status_code.items():
-            if address != '/posts/1/edit/' and address != '/create/':
+            if (address != f'/posts/{self.post.pk}/edit/'
+                    and address != '/create/'):
                 with self.subTest(address=address):
                     response = self.client.get(address).status_code
                     self.assertEqual(response, status_code)
@@ -90,11 +91,12 @@ class StaticURLTests(TestCase):
     def test_urls_uses_correct_template1(self):
         """URL-адрес использует соответствующий шаблон."""
         for address, template in self.templates_url_names.items():
-            if address != '/posts/1/edit/' and address != '/create/':
+            if (address != f'/posts/{self.post.pk}/edit/'
+                    and address != '/create/'):
                 with self.subTest(address=address):
                     response = self.authorized_client.get(address)
                     self.assertTemplateUsed(response, template)
-            elif address == '/posts/1/edit/':
+            elif address == f'/posts/{self.post.pk}/edit/':
                 response = self.client_for_author_of_post.get(address)
                 self.assertTemplateUsed(response, template)
             else:
