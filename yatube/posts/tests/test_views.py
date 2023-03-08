@@ -1,13 +1,19 @@
+import shutil
+import tempfile
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django import forms
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 
 from posts.forms import PostForm
-from posts.models import Post, Group
+from posts.models import Post, Group, Comment, Follow
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
 class PostPagesTests(TestCase):
@@ -26,13 +32,34 @@ class PostPagesTests(TestCase):
             slug='test-group2',
             description='Тестовое описание группы2'
         )
+        cls.image = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=cls.image,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             text='Тестовый пост',
             author=cls.author_of_post,
-            group=cls.group
+            group=cls.group,
+            image=cls.uploaded
         )
 
+        @classmethod
+        def tearDownClass(cls):
+            super().tearDownClass()
+            shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
     def setUp(self):
+        super().setUp()
+        cache.clear()
         self.user_auth = User.objects.create_user(username='AuthUser')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user_auth)
@@ -46,6 +73,7 @@ class PostPagesTests(TestCase):
             self.assertEqual(post.text, self.post.text)
             self.assertEqual(post.author, self.post.author)
             self.assertEqual(post.group, self.post.group)
+            self.assertEqual(post.image, self.post.image)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -145,6 +173,72 @@ class PostPagesTests(TestCase):
         group2 = response.context.get('group')
         self.assertNotEqual(group2, self.group)
 
+    def test_comment_from_authorized_client(self):
+        '''Проверяем, что коммент м оставить авторизованный юзер
+        и коммент появляется на странице'''
+        comments_count = Comment.objects.count()
+        comments = {'text': 'Это тестовый комментарий'}
+        self.client_for_author_of_post.post(
+            reverse('posts:add_comment',
+                    kwargs={
+                        'post_id': self.post.pk
+                    }),
+            data=comments,
+            follow=True,
+        )
+        response = self.client_for_author_of_post.get(
+            reverse('posts:post_detail',
+                    kwargs={
+                        'post_id': self.post.pk
+                    }),
+        )
+        self.assertContains(response, comments['text'])
+        self.assertEqual(Comment.objects.count(), comments_count + 1)
+
+    def test_comment_from_guest_client(self):
+        """Проверяем, что гость не может комментировать"""
+        comments = {'text': 'Это тестовый комментарий'}
+        self.client.post(
+            reverse('posts:add_comment',
+                    kwargs={
+                        'post_id': self.post.pk
+                    }),
+            data=comments,
+            follow=True,
+        )
+        response = self.client.get(
+            reverse('posts:post_detail',
+                    kwargs={
+                        'post_id': self.post.pk
+                    }),
+        )
+        self.assertNotContains(response, comments['text'])
+
+    def test_cache_index(self):
+        """Тест, который проверяют работу кеша на главной странице"""
+        response = self.client_for_author_of_post.get(reverse('posts:index'))
+        count_of_orig_resp = response.content
+        Post.objects.create(
+            text="Ещё один пост",
+            author=self.author_of_post
+        )
+        response_after_create_new_post = self.client_for_author_of_post.get(
+            reverse('posts:index')
+        )
+        self.assertEqual(
+            count_of_orig_resp,
+            response_after_create_new_post.content
+        )
+        cache.clear()
+        new_pesponse = self.client_for_author_of_post.get(
+            reverse('posts:index')
+        )
+        new_count_of_posts = new_pesponse.content
+        self.assertNotEqual(
+            count_of_orig_resp,
+            new_count_of_posts
+        )
+
 
 class PaginatorViewsTest(TestCase):
     @classmethod
@@ -163,9 +257,15 @@ class PaginatorViewsTest(TestCase):
                 group=cls.group
             )
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
     def setUp(self):
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post2)
+        cache.clear()
 
     def test_first_page_contains_ten_records(self):
         response = self.client_for_author_of_post.get(reverse('posts:index'))
@@ -200,3 +300,71 @@ class PaginatorViewsTest(TestCase):
                         reverse(address, args=args) + page
                     )
                     self.assertEqual(len(response.context['page_obj']), count)
+
+
+class FollowTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.follower = User.objects.create_user(username="TestFollower")
+        cls.bloogger = User.objects.create_user(username="TestBlogger")
+        cls.group = Group.objects.create(
+            title='Тестовая группа',
+            slug='test-group',
+            description='Тестовое описание группы2'
+        )
+        cls.post = Post.objects.create(
+            text='Тестовый пост',
+            author=cls.bloogger,
+            group=cls.group,
+        )
+
+        @classmethod
+        def tearDownClass(cls):
+            super().tearDownClass()
+            shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.authorized_client_follower = Client()
+        self.authorized_client_follower.force_login(self.follower)
+
+    def test_follow_and_unfollow(self):
+        """Авторизованный пользователь
+        может подписываться на других пользователей и отписываться """
+        self.authorized_client_follower.get(
+            reverse('posts:profile_follow',
+                    kwargs={'username': self.bloogger.username})
+        )
+        self.assertEqual(Follow.objects.all().count(), 1)
+        self.authorized_client_follower.get(
+            reverse('posts:profile_unfollow',
+                    kwargs={'username': self.bloogger.username})
+        )
+        self.assertEqual(Follow.objects.all().count(), 0)
+
+    def test_posts_in_line(self):
+        """Новая запись пользователя появляется
+        в ленте тех, кто на него подписан """
+        self.authorized_client_follower.get(
+            reverse('posts:profile_follow',
+                    kwargs={'username': self.bloogger.username})
+        )
+        response = self.authorized_client_follower.get(
+            reverse('posts:follow_index')
+        )
+        post = response.context['page_obj'][0].text
+        self.assertEqual(post, self.post.text)
+
+    def test_posts_not_in_line(self):
+        """Новая запись не появляется в ленте тех, кто не подписан"""
+        new_post = Post.objects.create(
+            text='Новый тестовый пост',
+            author=self.bloogger,
+            group=self.group,
+        )
+        response = self.authorized_client_follower.get(
+            reverse('posts:follow_index')
+        )
+        self.assertNotContains(response, new_post.text)

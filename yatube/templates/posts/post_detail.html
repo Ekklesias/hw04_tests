@@ -5,49 +5,27 @@
 {% endblock %}
 {% block content %}
   <div class="row">
-    <aside class="col-12 col-md-3">
-      <ul class="list-group list-group-flush">
-        <li class="list-group-item">
-          Дата публикации: {{ post.pub_date|date:"d E Y" }}
-        </li>
-        <li class="list-group-item">
-          {% if post.group %}
-            Группа: {{ post.group.title }}
-            <a href="{% url 'posts:group_list' post.group.slug %}">
-              все записи группы
-            </a>
-          {% else %}
-            <span style="color: red">Этой публикации пока нет ни в одном сообществе.</span>
-          {% endif %}
-        </li>
-        <li class="list-group-item">
-          Автор: {{ post.author.get_full_name }}
-        </li>
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          Всего постов автора: <span >{{ post.author.posts.count }}</span>
-        </li>
-        <li class="list-group-item">
-          <a href="{% url 'posts:profile' post.author.username %}">
-            все посты пользователя
-          </a>
-        </li>
-      </ul>
-    </aside>
     <article>
       <ul>
         <li>
-          Автор: {{ post.author.get_full_name }} 
+          Автор: {{ post.author.username }} 
           <a href="{% url 'posts:profile' post.author %}">все посты пользователя</a>
         </li>
         <li>
           Дата публикации: {{ post.pub_date|date:"d E Y" }}
+        </li>
+        <li>
+          Группа: {{ post.group }}<a href="{% url 'posts:group_list' post.group.slug %}">
+              все записи группы
+            </a>
         </li>
       </ul>
       {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
         <img class="card-img my-2" src="{{ im.url }}">
       {% endthumbnail %}
       <p>{{ post.text }}</p>
-      <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
+      <a href="{% url 'posts:post_edit' post.pk %}">Редактировать запись</a>
     </article>
+    {% include 'posts/includes/comment.html' %}
   </div>
 {% endblock %}

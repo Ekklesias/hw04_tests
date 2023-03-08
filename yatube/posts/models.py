@@ -34,7 +34,7 @@ class Post(models.Model):
     )
     image = models.ImageField(
         'Картинка',
-        upload_to='posts/media',
+        upload_to='posts/',
         blank=True
     )
 
@@ -45,3 +45,45 @@ class Post(models.Model):
 
     def __str__(self):
         return self.text[:TEXT_LIMIT]
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        help_text='Комментарии к посту'
+    )
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор комментария',
+    )
+
+    text = models.TextField(
+        'Текст комментария',
+        help_text='Напишите комментарии'
+    )
+    created = models.DateTimeField('Дата комментария', auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created']
+        verbose_name = 'Пост'
+        verbose_name_plural = 'Посты'
+
+
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+        verbose_name='Подписчик',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following',
+        verbose_name='Тот, на кого подписываются',
+    )

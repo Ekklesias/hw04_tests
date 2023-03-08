@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
+from django.core.cache import cache
 
 from posts.models import Post, Group
 
@@ -46,6 +47,7 @@ class StaticURLTests(TestCase):
         self.authorized_client.force_login(self.user_auth)
         self.client_for_author_of_post = Client()
         self.client_for_author_of_post.force_login(self.author_of_post)
+        cache.clear()
 
     def test_unexisting_page_correct_status(self):
         """Страница по адресу 'unexisting_page' вернёт ошибку 404."""
@@ -102,3 +104,8 @@ class StaticURLTests(TestCase):
             else:
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
+
+    def test_page_not_found_404(self):
+        response = self.authorized_client.get('/oopss')
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertTemplateUsed(response, 'core/404.html')
